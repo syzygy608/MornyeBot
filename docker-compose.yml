@@ -1,0 +1,28 @@
+services:
+  bot:
+    build: .
+    restart: always
+    depends_on:
+      - db
+    env_file: .env
+    environment:
+      - DB_HOST=db 
+
+  db:
+    image: postgres:16-alpine
+    restart: always
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
+    ports:
+      - "${DB_PORT}:5432"
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "12333:8080" # 左邊是你要在本機使用的埠號，右邊是容器內的埠號
