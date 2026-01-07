@@ -1,5 +1,9 @@
 # mornyebot
 
+A Discord Bot built with [Bun](https://bun.sh) and [discord.js](https://discord.js.org).
+
+## Getting Started
+
 To install dependencies:
 
 ```bash
