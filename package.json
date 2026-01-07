@@ -4,9 +4,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-  "dev": "bun --watch index.ts",
-  "start": "bun index.ts",
-  "clear": "bun run scripts/clear.ts"
+    "dev": "bun --watch index.ts",
+    "start": "bun index.ts",
+    "clear": "bun run scripts/clear.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -18,7 +18,10 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@types/node-cron": "^3.0.11",
+    "dayjs": "^1.11.19",
     "discord.js": "^14.25.1",
+    "node-cron": "^4.2.1",
     "pg": "^8.16.3"
   }
 }

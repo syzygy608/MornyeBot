@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction, MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, LabelBuilder, ChannelType, StringSelectMenuBuilder, ActionRow, ActionRowBuilder } from "discord.js";
+import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction, MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, LabelBuilder, ChannelType, StringSelectMenuBuilder, ActionRow, ActionRowBuilder, ComponentType } from "discord.js";
 import type { SlashCommand } from "../types";
 import { db } from "../db";
 
@@ -100,8 +100,11 @@ const add_schedule: SlashCommand = {
         )
         .addRoleOption(option =>
             option.setName("role")
-                .setDescription("The role to notify")
-                .setRequired(true)
+                .setDescription("The role to notify (can be empty for no role)")
+        )
+        .addUserOption(option =>
+            option.setName("user")
+                .setDescription("The user to notify (can be empty for no user)")
         ),
     execute: async (interaction: ChatInputCommandInteraction) => {
         const executorId = interaction.user.id;
@@ -115,10 +118,11 @@ const add_schedule: SlashCommand = {
         }
         
         const Channel = interaction.options.getChannel("channel", true);
-        const Role = interaction.options.getRole("role", true);
+        const Role = interaction.options.getRole("role", false);
+        const User = interaction.options.getUser("user", false);
 
         const modal = new ModalBuilder()
-            .setCustomId(`addScheduleModal:${Channel.id}:${Role.id}`)
+            .setCustomId(`addScheduleModal:${Channel.id}:${Role?.id || ''}:${User?.id || ''}`)
             .setTitle('Add Schedule Entry');
 
         const dayInput = new TextInputBuilder()
@@ -213,23 +217,23 @@ const delete_schedule: SlashCommand = {
         .setDescription("Deletes a schedule entry."),
     execute: async (interaction: ChatInputCommandInteraction) => {
         const executorId = interaction.user.id;
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
         let hasPermission = await checkAuthority(executorId, interaction.guildId);
         if (!hasPermission) {
-            await interaction.reply({ 
+            await interaction.editReply({ 
                 content: "(Error) You do not have permission to use this command.", 
-                flags: MessageFlags.Ephemeral 
             });
             return;
         }
 
         const scheduleEntries = await db.query(
-            'SELECT task_id, schedule_time, task_description FROM scheduled_tasks WHERE guild_id = $1 ORDER BY schedule_time ASC',
+            'SELECT task_id, scheduled_time, description FROM scheduled_tasks WHERE guild_id = $1 ORDER BY scheduled_time ASC',
             [interaction.guildId]
         );
         if (!scheduleEntries.rowCount || scheduleEntries.rowCount === 0) {
-            await interaction.reply({ 
+            await interaction.editReply({ 
                 content: "(Error) There are no schedule entries to delete.", 
-                flags: MessageFlags.Ephemeral 
             });
             return;
         }
@@ -243,21 +247,64 @@ const delete_schedule: SlashCommand = {
             .setCustomId('deleteScheduleSelect')
             .setPlaceholder('Select a schedule entry to delete');
 
-        scheduleEntries.rows.forEach(row => {
-            const scheduleTime = new Date(row.schedule_time).toLocaleString();
+        const limit_rows = scheduleEntries.rows.slice(0, 25); // Limit to first 25 entries
+
+        limit_rows.forEach(row => {
+            const scheduleTime = new Date(row.scheduled_time).toLocaleString();
             entriesList.addOptions({
                 label: `${scheduleTime}`,
-                description: row.task_description.length > 50 ? row.task_description.substring(0, 47) + '...' : row.task_description,
+                description: row.description.length > 50 ? row.description.substring(0, 47) + '...' : row.description,
                 value: row.task_id.toString()
             });
         });
 
-        embed.addFields({ name: 'Schedule Entries', value: 'Use the select menu below to choose an entry to delete.' });
-        const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(entriesList);
-            
-        await interaction.reply({ embeds: [embed], components: [row as any], flags: MessageFlags.Ephemeral });
+        if (scheduleEntries.rowCount > 25) {
+            embed.setFooter({ text: `Showing top 25 of ${scheduleEntries.rowCount} entries.` });
+        }
 
-        
+        const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(entriesList);
+
+        const response = await interaction.editReply({ 
+            embeds: [embed], 
+            components: [row] 
+        });
+
+
+        const collector = response.createMessageComponentCollector({
+            componentType: ComponentType.StringSelect,
+            time: 60000 // 60秒內有效
+        });
+
+        collector.on('collect', async i => {
+            const selectedTaskId = i.values[0];
+            // 執行資料庫刪除動作
+            try {
+                await db.query('DELETE FROM scheduled_tasks WHERE task_id = $1', [selectedTaskId]);
+                
+                await i.update({ 
+                    content: `✅ Successfully deleted schedule entry (ID: ${selectedTaskId}).`, 
+                    embeds: [], 
+                    components: [] 
+                });
+            } catch (error) {
+                console.error(error);
+                await i.update({ 
+                    content: `❌ Failed to delete the entry due to a database error.`,
+                    embeds: [], 
+                    components: []
+                });
+            }
+        });
+
+        collector.on('end', collected => {
+            if (collected.size === 0) {
+                // 超時未選擇，移除選單
+                interaction.editReply({
+                    content: 'Time expired. Please run the command again if you wish to delete an entry.',
+                    components: []
+                }).catch(() => {}); // 忽略可能的錯誤 (例如訊息已被刪除)
+            }
+        });
     }
 };
 export default [add_admin, add_schedule, delete_admin, delete_schedule];

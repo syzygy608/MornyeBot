@@ -7,14 +7,14 @@ const ping: SlashCommand = {
         .setDescription("Pong! Returns the bot's latency."),
     
     execute: async (interaction) => {
-        const sent = await interaction.reply("Pong!");
+        await interaction.reply("Pong!");
         const embed = new EmbedBuilder()
             .setTitle("Bot Latency")
-            .setDescription(`Latency: ${sent.createdTimestamp - interaction.createdTimestamp} ms`)
+            .setDescription(`Latency: ${Date.now() - interaction.createdTimestamp} ms`)
             .setColor(0x00AE86)
             .setTimestamp();
         
-        await interaction.editReply({ embeds: [embed] });
+        await interaction.editReply({ embeds: [embed], content: "" });
     }
 };
 

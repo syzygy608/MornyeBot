@@ -1,6 +1,7 @@
 import { ModalSubmitInteraction } from "discord.js";
 import type { Modal } from "../types";
 import { db } from "../db";
+import { resolve } from "node:dns";
 
 const modal: Modal = {
     customId: "addScheduleModal",
@@ -9,7 +10,7 @@ const modal: Modal = {
 
         const day = interaction.fields.getTextInputValue('dayInput');
         const time = interaction.fields.getTextInputValue('timeInput');
-        const reason = interaction.fields.getTextInputValue('descriptionInput');
+        var reason = interaction.fields.getTextInputValue('descriptionInput');
 
         console.log(`New schedule entry added:
         Day: ${day}
@@ -28,24 +29,32 @@ const modal: Modal = {
             await interaction.reply({ content: "(Error) Invalid time format. Please use HH:MM in 24-hour format.", flags: 64 });
             return;
         }
+
         const [year, month, date] = day.split('/').map(Number) as [number, number, number];
         const [hour, minute] = time.split(':').map(Number) as [number, number];
         if (month < 1 || month > 12 || date < 1 || date > 31 || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
             await interaction.reply({ content: "(Error) Invalid date or time values.", flags: 64 });
             return;
         }
+
         const schedule_timestamp = new Date(year, month - 1, date, hour, minute);
+
         if (isNaN(schedule_timestamp.getTime())) {
             await interaction.reply({ content: "(Error) Invalid date or time provided.", flags: 64 });
             return;
         }
 
-        const [_, notificationChannelId, notificationRoleId] = interaction.customId.split(':');
+        // prevent description from sql injection
+        reason = reason.replace(/'/g, "''"); // simple escape for single quotes
+        reason = reason.replace(/;/g, ""); // remove semicolons
+        reason = reason.replace(/--/g, ""); // remove double dashes
+
+        const [_, notificationChannelId, notificationRoleId, notificationUserId] = interaction.customId.split(':');
 
         try {
             await db.query(
-                'INSERT INTO scheduled_tasks (guild_id, notification_channel, notification_role, task_description, scheduled_time, added_by) VALUES ($1, $2, $3, $4, $5, $6)',
-                [interaction.guildId || 'DM', notificationChannelId, notificationRoleId, reason, schedule_timestamp, interaction.user.id]
+                'INSERT INTO scheduled_tasks (guild_id, channel, role, user_id, description, scheduled_time, added_by) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+                [interaction.guildId || 'DM', notificationChannelId, notificationRoleId, notificationUserId, reason, schedule_timestamp, interaction.user.id]
             );
         
             await interaction.reply({ content: "(OK) Schedule entry added successfully.", flags: 64 });
