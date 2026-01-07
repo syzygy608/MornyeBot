@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS admin_list (
     user_id VARCHAR(20) PRIMARY KEY,
     user_name VARCHAR(100),
     admin_at_guild VARCHAR(20),
-    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     added_by VARCHAR(20)
 );
 
@@ -20,6 +20,6 @@ CREATE TABLE IF NOT EXISTS scheduled_tasks (
     user_id VARCHAR(20),
     description TEXT,
     scheduled_time TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     added_by VARCHAR(20)
 );
