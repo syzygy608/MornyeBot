@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, EmbedBuilder, ChatInputCommandInteraction, MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle, LabelBuilder, ChannelType, StringSelectMenuBuilder, ActionRow, ActionRowBuilder, ComponentType } from "discord.js";
 import type { SlashCommand } from "../types";
 import { db } from "../db";
+import { reschedule } from "../reschedule";
 
 function checkAuthority(userId: string, guildId: string | null): Promise<boolean> {
     return new Promise(async (resolve, reject) => {
@@ -132,7 +133,7 @@ const add_schedule: SlashCommand = {
             .setRequired(true);
         const dayLabel = new LabelBuilder()
             .setTextInputComponent(dayInput)
-            .setLabel('Day (e.g., 2025/12/25)');
+            .setLabel('Day (e.g., 2026/01/01)');
 
         const timeInput = new TextInputBuilder()
             .setCustomId('timeInput')
@@ -282,18 +283,19 @@ const delete_schedule: SlashCommand = {
                 await db.query('DELETE FROM scheduled_tasks WHERE task_id = $1', [selectedTaskId]);
                 
                 await i.update({ 
-                    content: `✅ Successfully deleted schedule entry (ID: ${selectedTaskId}).`, 
+                    content: `(OK) Successfully deleted schedule entry (ID: ${selectedTaskId}).`, 
                     embeds: [], 
                     components: [] 
                 });
             } catch (error) {
                 console.error(error);
                 await i.update({ 
-                    content: `❌ Failed to delete the entry due to a database error.`,
+                    content: `(Error) Failed to delete the entry due to a database error.`,
                     embeds: [], 
                     components: []
                 });
             }
+            await reschedule()
         });
 
         collector.on('end', collected => {

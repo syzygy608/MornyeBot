@@ -1,8 +1,7 @@
 import { ModalSubmitInteraction } from "discord.js";
 import type { Modal } from "../types";
 import { db } from "../db";
-import { resolve } from "node:dns";
-
+import { reschedule } from "../reschedule";
 const modal: Modal = {
     customId: "addScheduleModal",
     
@@ -58,6 +57,7 @@ const modal: Modal = {
             );
         
             await interaction.reply({ content: "(OK) Schedule entry added successfully.", flags: 64 });
+            await reschedule();
         } catch (error) {
             console.error(error);
             await interaction.reply({ content: "(Error) Failed to add schedule entry.", flags: 64 });
