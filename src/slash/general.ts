@@ -8,9 +8,12 @@ const ping: SlashCommand = {
     
     execute: async (interaction) => {
         await interaction.reply("Pong!");
-        const embed = new EmbedBuilder()
+
+        const embed = await new EmbedBuilder()
             .setTitle("Bot Latency")
-            .setDescription(`Latency: ${Date.now() - interaction.createdTimestamp} ms`)
+            .setDescription(
+                `API 延遲: ${interaction.client.ws.ping} ms` 
+            )
             .setColor(0x00AE86)
             .setTimestamp();
         
@@ -30,7 +33,8 @@ const info: SlashCommand = {
             .setColor(0x00AE86)
             .addFields(
                 { name: "Creator", value: "d1stance" },
-                { name: "Version", value: "1.0.0" }
+                { name: "Version", value: "1.0.0" },
+                { name: "Usage", value: "This bot only supports slash commands." }
             )
             .setThumbnail(interaction.client.user?.avatarURL() || "")
             .setTimestamp();
